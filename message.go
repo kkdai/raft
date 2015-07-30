@@ -17,10 +17,10 @@ type message struct {
 	val  string
 }
 
-func (m *message) getMsgTerm() string {
+func (m *message) getMsgTerm() int {
 	return m.term
 }
 
-func (m *message) getVal() int {
+func (m *message) getVal() string {
 	return m.val
 }
