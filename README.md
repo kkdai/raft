@@ -5,6 +5,13 @@ raft
 It is the [Raft](https://raftconsensus.github.io/) Consensus algorithm Raft implement in Golang.
 
 
+Inspired By
+---------------
+
+- [Goraft](https://github.com/goraft/raft)
+    - Inspired by programming style and logic.
+
+
 
 License
 ---------------

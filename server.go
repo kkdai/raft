@@ -9,90 +9,67 @@ import (
 type Role int
 
 const (
-	Folloer Role = iota + 1
+	Follower Role = iota + 1
 	Candidate
 	Leader
 )
 
 type server struct {
-	id          int
+	id int
+	//Hearbit expired time (by millisecond.)
 	expiredTime int
 	role        Role
 	nt          nodeNetwork
+	//Message receive time
 	msgRecvTime time.Time
+	//To determine if server still alive, for kill testing.
+	isAlive bool
+	//id list exist in this network.
+	nodeList []int
 }
 
-func NewServer(id int, role Role, nt nodeNetwork) *server {
+//New a server and given a random expired time.
+func NewServer(id int, role Role, nt nodeNetwork, nodeList ...int) *server {
 	rand.Seed(time.Now().UnixNano())
-	//expired time is random by spec.
 	expiredMiliSec := rand.Intn(5) + 1
-	serv := &server{id: id, role: role, nt: nt, expiredTime: expiredMiliSec}
+	serv := &server{id: id, role: role, nt: nt, expiredTime: expiredMiliSec, isAlive: true, nodeList: nodeList}
 	return serv
 }
 
-func (sev *server) run() {
+func (sev *server) runServerLoop() {
 
 	for {
-		m := sev.nt.recev()
-		if m == nil {
-			continue
+		switch sev.role {
+		case Leader:
+			sev.runLeaderLoop()
+		case Candidate:
+			sev.runCandidateLoop()
+		case Follower:
+			sev.runFollowerLoop()
 		}
 
-		var retMsg message
-		switch m.typ {
-		case Heartbit:
-			retMsg := sev.handleHearbit(*m)
-		case RequestVote:
-			retMsg := sev.handleRequestVote(*m)
-
-		case AcceptVote:
-			retMsg := sev.handleAcceptVote(*m)
-		case WinningVote:
-			retMsg := sev.handleWinningVote(*m)
-		}
-
-		sev.nt.send(retMsg)
+		//timer base on milli-second.
+		time.Sleep(time.Millisecond)
 	}
 }
 
-func (sev *server) handleHearbit(m message) message {
-
-	switch sev.role {
-	case Folloer:
-	case Candidate:
-	case Leader:
+func (sev *server) sendHearbit() {
+	for _, node := range sev.nodeList {
+		hbMsg := message{from: sev.id, to: node, typ: Heartbit, val: "HB"}
+		sev.nt.send(hbMsg)
 	}
-	return m
 }
 
-func (sev *server) handleRequestVote(m message) message {
+func (sev *server) runLeaderLoop() {
+	sev.sendHearbit()
 
-	switch sev.role {
-	case Folloer:
-	case Candidate:
-	case Leader:
-	}
-	return m
 }
 
-func (sev *server) handleAcceptVote(m message) message {
-
-	switch sev.role {
-	case Folloer:
-	case Candidate:
-	case Leader:
-	}
-	return m
+func (sev *server) runCandidateLoop() {
 }
 
-func (sev *server) handleWinningVote(m message) message {
+func (sev *server) runFollowerLoop() {
 
-	switch sev.role {
-	case Folloer:
-	case Candidate:
-	case Leader:
-	}
-	return m
 }
 
 func (sev *server) roleChange(newRole Role) {
