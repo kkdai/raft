@@ -12,7 +12,6 @@ Inspired By
     - Inspired by programming style and logic.
 
 
-
 License
 ---------------
 

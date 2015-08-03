@@ -15,17 +15,14 @@ const (
 )
 
 type server struct {
-	id int
-	//Hearbit expired time (by millisecond.)
-	expiredTime int
+	id          int
+	expiredTime int //Hearbit expired time (by millisecond.)
 	role        Role
 	nt          nodeNetwork
-	//Message receive time
-	msgRecvTime time.Time
-	//To determine if server still alive, for kill testing.
-	isAlive bool
-	//id list exist in this network.
-	nodeList []int
+	msgRecvTime time.Time //Message receive time
+	isAlive     bool      //To determine if server still alive, for kill testing.
+	nodeList    []int     //id list exist in this network.
+	seq         int       //seq about log
 }
 
 //New a server and given a random expired time.
@@ -62,6 +59,8 @@ func (sev *server) sendHearbit() {
 
 func (sev *server) runLeaderLoop() {
 	sev.sendHearbit()
+
+	recev
 
 }
 
