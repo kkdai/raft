@@ -51,6 +51,7 @@ func (sev *server) runServerLoop() {
 }
 
 func (sev *server) sendHearbit() {
+
 	for _, node := range sev.nodeList {
 		hbMsg := message{from: sev.id, to: node, typ: Heartbit, val: "HB"}
 		sev.nt.send(hbMsg)
@@ -60,7 +61,14 @@ func (sev *server) sendHearbit() {
 func (sev *server) runLeaderLoop() {
 	sev.sendHearbit()
 
-	recev
+	recevMsg := sev.nt.recev()
+	if recevMsg == nil {
+		return
+	}
+	switch recevMsg.typ {
+	case Heartbit:
+		return
+	}
 
 }
 
