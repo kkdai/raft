@@ -22,7 +22,7 @@ type server struct {
 	msgRecvTime time.Time //Message receive time
 	isAlive     bool      //To determine if server still alive, for kill testing.
 	nodeList    []int     //id list exist in this network.
-	seq         int       //seq about log
+	term        int       //term about current time seq
 }
 
 //New a server and given a random expired time.
@@ -33,7 +33,12 @@ func NewServer(id int, role Role, nt nodeNetwork, nodeList ...int) *server {
 	return serv
 }
 
-func (sev *server) runServerLoop() {
+//AssignAction : Assign a assign to any of server.
+func (sev *server) AssignAction(action string) {
+	//TODO. Add action into logs and leader will announce to all other servers.
+}
+
+func (sev *server) RunServerLoop() {
 
 	for {
 		switch sev.role {
@@ -70,13 +75,27 @@ func (sev *server) runLeaderLoop() {
 		return
 	}
 
+	//TODO. assign value to followers
+
+	//TODO. if get bigger TERM request, back to follower
 }
 
 func (sev *server) runCandidateLoop() {
+
+	//TODO. send RequestVote to all others
+
+	//TODO. recev AcceptVote
+
+	//TODO. check if prompt to leader.
+
+	//TODO. If not, back to follower
 }
 
 func (sev *server) runFollowerLoop() {
 
+	//TODO. check if leader no heartbeat to change to candidate.
+
+	//TODO. check action from leader to add into committed logs
 }
 
 func (sev *server) roleChange(newRole Role) {
