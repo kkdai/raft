@@ -5,6 +5,10 @@ type datalog struct {
 	action string
 }
 
+func (d *datalog) identical(data datalog) bool {
+	return d.term == data.term && d.action == data.action
+}
+
 type submittedItems struct {
 	logs     []datalog
 	logIndex int
@@ -20,4 +24,9 @@ func (d *submittedItems) identicalWith(b *submittedItems) bool {
 	}
 
 	return false
+}
+
+func (s *submittedItems) add(data datalog) {
+	s.logIndex++
+	s.logs = append(s.logs, data)
 }

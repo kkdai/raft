@@ -20,22 +20,45 @@ type server struct {
 	role        Role
 	nt          nodeNetwork
 	msgRecvTime time.Time //Message receive time
-	isAlive     bool      //To determine if server still alive, for kill testing.
 	nodeList    []int     //id list exist in this network.
 	term        int       //term about current time seq
+	db          submittedItems
+
+	isAlive  bool //To determine if server still alive, for kill testing.
+	HasVoted bool //To record if already vote others.
 }
 
 //New a server and given a random expired time.
 func NewServer(id int, role Role, nt nodeNetwork, nodeList ...int) *server {
 	rand.Seed(time.Now().UnixNano())
 	expiredMiliSec := rand.Intn(5) + 1
-	serv := &server{id: id, role: role, nt: nt, expiredTime: expiredMiliSec, isAlive: true, nodeList: nodeList}
+	serv := &server{id: id,
+		role:        role,
+		nt:          nt,
+		expiredTime: expiredMiliSec,
+		isAlive:     true,
+		nodeList:    nodeList,
+		db:          submittedItems{}}
 	return serv
 }
 
 //AssignAction : Assign a assign to any of server.
-func (sev *server) AssignAction(action string) {
+//This is another thread, because the command send from outside, example app request to log.
+func (sev *server) AssignAction(action datalog) {
 	//TODO. Add action into logs and leader will announce to all other servers.
+	switch sev.role {
+	case Leader:
+		//Apply to all followers
+	case Candidate:
+		//TBC.
+	case Follower:
+		//Run election to leader
+		sev.requestVote(action)
+	}
+}
+
+func (sev *server) Whoareyou() Role {
+	return sev.role
 }
 
 func (sev *server) RunServerLoop() {
@@ -55,10 +78,24 @@ func (sev *server) RunServerLoop() {
 	}
 }
 
-func (sev *server) sendHearbit() {
-
+//For flower -> candidate
+func (sev *server) requestVote(action datalog) {
+	m := message{from: sev.id,
+		typ: RequestVote,
+		val: action}
 	for _, node := range sev.nodeList {
-		hbMsg := message{from: sev.id, to: node, typ: Heartbit, val: "HB"}
+		m.to = node
+		sev.nt.send(m)
+	}
+
+	//Send request Vote and change self to Candidate.
+	sev.roleChange(Candidate)
+}
+
+func (sev *server) sendHearbit() {
+	//
+	for _, node := range sev.nodeList {
+		hbMsg := message{from: sev.id, to: node, typ: Heartbit}
 		sev.nt.send(hbMsg)
 	}
 }
@@ -94,8 +131,36 @@ func (sev *server) runCandidateLoop() {
 func (sev *server) runFollowerLoop() {
 
 	//TODO. check if leader no heartbeat to change to candidate.
+	recvMsg := sev.nt.recev()
 
-	//TODO. check action from leader to add into committed logs
+	if recvMsg == nil {
+		return
+	}
+	switch recvMsg.typ {
+	case Heartbit:
+		if !sev.db.getLatestLogs().identical(recvMsg.getVal()) {
+			//Data not exist, add it. (TODO)
+			sev.db.add(recvMsg.getVal())
+		}
+
+		//Send it back HeartBeat
+		recvMsg.to = recvMsg.from
+		recvMsg.from = sev.id
+		sev.nt.send(*recvMsg)
+		return
+	case RequestVote:
+		if !sev.HasVoted {
+			recvMsg.to = recvMsg.from
+			recvMsg.from = sev.id
+			recvMsg.typ = AcceptVote
+			sev.nt.send(*recvMsg)
+		} else {
+			//Don't do anything if you already vote.
+		}
+	case WinningVote:
+		//Clean variables.
+		sev.HasVoted = false
+	}
 }
 
 func (sev *server) roleChange(newRole Role) {

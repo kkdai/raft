@@ -14,13 +14,13 @@ type message struct {
 	to   int
 	typ  msgType
 	term int
-	val  string
+	val  datalog
 }
 
 func (m *message) getMsgTerm() int {
 	return m.term
 }
 
-func (m *message) getVal() string {
+func (m *message) getVal() datalog {
 	return m.val
 }
