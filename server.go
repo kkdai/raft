@@ -24,8 +24,11 @@ type server struct {
 	term        int       //term about current time seq
 	db          submittedItems
 
-	isAlive  bool //To determine if server still alive, for kill testing.
-	HasVoted bool //To record if already vote others.
+	isAlive bool //To determine if server still alive, for kill testing.
+
+	//For candidator
+	HasVoted      bool //To record if already vote others.
+	acceptVoteMsg []message
 }
 
 //New a server and given a random expired time.
@@ -90,6 +93,7 @@ func (sev *server) requestVote(action datalog) {
 
 	//Send request Vote and change self to Candidate.
 	sev.roleChange(Candidate)
+	log.Println(" Now ID:", sev.id, " become ", sev.role)
 }
 
 func (sev *server) sendHearbit() {
@@ -101,6 +105,7 @@ func (sev *server) sendHearbit() {
 }
 
 func (sev *server) runLeaderLoop() {
+	log.Println("ID:", sev.id, " Run leader loop")
 	sev.sendHearbit()
 
 	recevMsg := sev.nt.recev()
@@ -118,9 +123,36 @@ func (sev *server) runLeaderLoop() {
 }
 
 func (sev *server) runCandidateLoop() {
-
+	log.Println("ID:", sev.id, " Run candidate loop")
 	//TODO. send RequestVote to all others
+	recvMsg := sev.nt.recev()
 
+	if recvMsg == nil {
+		log.Println("ID:", sev.id, " no msg, return.")
+		return
+	}
+	switch recvMsg.typ {
+	case Heartbit:
+		//TODO
+		return
+	case RequestVote:
+		//TODO.
+		return
+	case AcceptVote:
+		sev.acceptVoteMsg = append(sev.acceptVoteMsg, *recvMsg)
+		if len(sev.acceptVoteMsg) > sev.majorityCount() {
+			sev.roleChange(Leader)
+
+			//TODO. send win vote to all note
+
+		}
+
+		return
+	case WinningVote:
+		//TODO
+		return
+
+	}
 	//TODO. recev AcceptVote
 
 	//TODO. check if prompt to leader.
@@ -129,15 +161,18 @@ func (sev *server) runCandidateLoop() {
 }
 
 func (sev *server) runFollowerLoop() {
+	log.Println("ID:", sev.id, " Run follower loop")
 
 	//TODO. check if leader no heartbeat to change to candidate.
 	recvMsg := sev.nt.recev()
 
 	if recvMsg == nil {
+		log.Println("ID:", sev.id, " no msg, return.")
 		return
 	}
 	switch recvMsg.typ {
 	case Heartbit:
+		// return
 		if !sev.db.getLatestLogs().identical(recvMsg.getVal()) {
 			//Data not exist, add it. (TODO)
 			sev.db.add(recvMsg.getVal())
@@ -161,6 +196,10 @@ func (sev *server) runFollowerLoop() {
 		//Clean variables.
 		sev.HasVoted = false
 	}
+}
+
+func (sev *server) majorityCount() int {
+	return len(sev.nodeList)/2 + 1
 }
 
 func (sev *server) roleChange(newRole Role) {

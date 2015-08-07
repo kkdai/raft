@@ -1,5 +1,7 @@
 package raft
 
+import "log"
+
 type datalog struct {
 	term   int
 	action string
@@ -15,7 +17,13 @@ type submittedItems struct {
 }
 
 func (d *submittedItems) getLatestLogs() *datalog {
-	return &(d.logs[len(d.logs)-1])
+	log.Println(" size of datalog:", len(d.logs))
+	if len(d.logs) > 0 {
+		return &(d.logs[len(d.logs)-1])
+	} else {
+		//No item, return empty datalog
+		return &datalog{}
+	}
 }
 
 func (d *submittedItems) identicalWith(b *submittedItems) bool {

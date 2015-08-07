@@ -41,16 +41,21 @@ func TestFollowerToCandidate(t *testing.T) {
 	nServer4 := NewServer(4, Follower, nt.getNodeNetwork(4), 2, 3, 1)
 	serverList = append(serverList, *nServer4)
 
-	for _, sev := range serverList {
-		go sev.RunServerLoop()
-	}
+	// for index, _ := range serverList {
+	// log.Println("server ID:", serverList[index].id)
+	go nServer1.RunServerLoop()
+	go nServer2.RunServerLoop()
+	go nServer3.RunServerLoop()
+	go nServer4.RunServerLoop()
+	// }
 
 	//Set server1 an action.
 	nServer1.AssignAction(datalog{term: 1, action: "x<-1"})
+	log.Println("Assign value to server 1 ")
 
-	//Wait server1 become candidate.
+	//Wait server1 become Leader.
 	for {
-		if nServer1.Whoareyou() == Candidate {
+		if nServer1.Whoareyou() == Leader {
 			break
 		}
 		time.Sleep(time.Second)
