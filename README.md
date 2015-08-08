@@ -1,6 +1,6 @@
 A Raft algorithm concept prove application 
 ==================
-[![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/kkdai/raft/master/LICENSE)  [![GoDoc](https://godoc.org/github.com/kkdai/paxos?status.svg)](https://godoc.org/github.com/kkdai/paxos) 
+[![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/kkdai/raft/master/LICENSE)  [![GoDoc](https://godoc.org/github.com/kkdai/raft?status.svg)](https://godoc.org/github.com/kkdai/raft) 
 
 It is the [Raft](https://raftconsensus.github.io/) Consensus algorithm Raft implement in Golang.
 
@@ -55,11 +55,13 @@ TBD
 - Two major problem in Raft
     - Leader Election
     - Log Replication
+    - Safety
 
 
 Inspired By
 ---------------
 
+- [Raft paper](http://nil.csail.mit.edu/6.824/2015/papers/raft-atc14.pdf)
 - [Goraft](https://github.com/goraft/raft)
     - Inspired by programming style and logic.
 - [Raft wiki](https://goo.gl/jrEs0a)

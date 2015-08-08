@@ -184,6 +184,8 @@ func (sev *server) runFollowerLoop() {
 		sev.nt.send(*recvMsg)
 		return
 	case RequestVote:
+		//Handle Request Vote from candidate.
+		//If doesn't vote before, will vote.
 		if !sev.HasVoted {
 			recvMsg.to = recvMsg.from
 			recvMsg.from = sev.id
@@ -191,10 +193,12 @@ func (sev *server) runFollowerLoop() {
 			sev.nt.send(*recvMsg)
 		} else {
 			//Don't do anything if you already vote.
+			//Only vote when first candidate request vote comes.
 		}
 	case WinningVote:
 		//Clean variables.
 		sev.HasVoted = false
+
 	}
 }
 
