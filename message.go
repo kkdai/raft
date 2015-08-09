@@ -4,6 +4,7 @@ type msgType int
 
 const (
 	Heartbit msgType = iota + 1
+	HeartbitFeedback
 	RequestVote
 	AcceptVote
 	WinningVote

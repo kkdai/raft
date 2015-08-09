@@ -97,9 +97,9 @@ func (sev *server) requestVote(action datalog) {
 }
 
 func (sev *server) sendHearbit() {
-	//
+	latestData := sev.db.getLatestLogs()
 	for _, node := range sev.nodeList {
-		hbMsg := message{from: sev.id, to: node, typ: Heartbit}
+		hbMsg := message{from: sev.id, to: node, typ: Heartbit, val: *latestData}
 		sev.nt.send(hbMsg)
 	}
 }
@@ -114,11 +114,20 @@ func (sev *server) runLeaderLoop() {
 	}
 	switch recevMsg.typ {
 	case Heartbit:
+		//TODO. other leaders HB, should not happen.
+		return
+
+	case HeartbitFeedback:
+		//TODO. notthing happen in this.
+		return
+
+	case RequestVote:
+		return
+	case AcceptVote:
+		return
+	case WinningVote:
 		return
 	}
-
-	//TODO. assign value to followers
-
 	//TODO. if get bigger TERM request, back to follower
 }
 
@@ -133,10 +142,10 @@ func (sev *server) runCandidateLoop() {
 	}
 	switch recvMsg.typ {
 	case Heartbit:
-		//TODO
+		//TODO. Leader heartbit
 		return
 	case RequestVote:
-		//TODO.
+		//TODO. other candidate request vote.
 		return
 	case AcceptVote:
 		sev.acceptVoteMsg = append(sev.acceptVoteMsg, *recvMsg)
@@ -144,7 +153,10 @@ func (sev *server) runCandidateLoop() {
 			sev.roleChange(Leader)
 
 			//TODO. send win vote to all note
-
+			for _, node := range sev.nodeList {
+				hbMsg := message{from: sev.id, to: node, typ: WinningVote}
+				sev.nt.send(hbMsg)
+			}
 		}
 
 		return
@@ -153,8 +165,6 @@ func (sev *server) runCandidateLoop() {
 		return
 
 	}
-	//TODO. recev AcceptVote
-
 	//TODO. check if prompt to leader.
 
 	//TODO. If not, back to follower
@@ -181,6 +191,7 @@ func (sev *server) runFollowerLoop() {
 		//Send it back HeartBeat
 		recvMsg.to = recvMsg.from
 		recvMsg.from = sev.id
+		recvMsg.typ = HeartbitFeedback
 		sev.nt.send(*recvMsg)
 		return
 	case RequestVote:
@@ -198,7 +209,6 @@ func (sev *server) runFollowerLoop() {
 	case WinningVote:
 		//Clean variables.
 		sev.HasVoted = false
-
 	}
 }
 
