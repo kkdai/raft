@@ -15,6 +15,20 @@ const (
 )
 
 type server struct {
+	//Persistent state on all servers
+	currentTerm int
+	voteFor     int
+	//log
+
+	//Validate state for all servers
+	commitIndex int
+	lastApplied int
+
+	//Leader state will reinit on election.
+	nextIndex  []int
+	matchIndex []int
+
+	//Basic Server state
 	id          int
 	expiredTime int //Hearbit expired time (by millisecond.)
 	role        Role
@@ -28,7 +42,7 @@ type server struct {
 
 	//For candidator
 	HasVoted      bool //To record if already vote others.
-	acceptVoteMsg []message
+	acceptVoteMsg []Message
 }
 
 //New a server and given a random expired time.
@@ -83,9 +97,11 @@ func (sev *server) RunServerLoop() {
 
 //For flower -> candidate
 func (sev *server) requestVote(action datalog) {
-	m := message{from: sev.id,
-		typ: RequestVote,
-		val: action}
+	m := Message{from: sev.id,
+		typ:          RequestVote,
+		val:          action,
+		term:         sev.term,
+		lastLogIndex: 0}
 	for _, node := range sev.nodeList {
 		m.to = node
 		sev.nt.send(m)
@@ -99,7 +115,7 @@ func (sev *server) requestVote(action datalog) {
 func (sev *server) sendHearbit() {
 	latestData := sev.db.getLatestLogs()
 	for _, node := range sev.nodeList {
-		hbMsg := message{from: sev.id, to: node, typ: Heartbit, val: *latestData}
+		hbMsg := Message{from: sev.id, to: node, typ: Heartbit, val: *latestData}
 		sev.nt.send(hbMsg)
 	}
 }
@@ -154,7 +170,7 @@ func (sev *server) runCandidateLoop() {
 
 			//TODO. send win vote to all note
 			for _, node := range sev.nodeList {
-				hbMsg := message{from: sev.id, to: node, typ: WinningVote}
+				hbMsg := Message{from: sev.id, to: node, typ: WinningVote}
 				sev.nt.send(hbMsg)
 			}
 		}
@@ -183,9 +199,9 @@ func (sev *server) runFollowerLoop() {
 	switch recvMsg.typ {
 	case Heartbit:
 		// return
-		if !sev.db.getLatestLogs().identical(recvMsg.getVal()) {
+		if !sev.db.getLatestLogs().identical(recvMsg.GetVal()) {
 			//Data not exist, add it. (TODO)
-			sev.db.add(recvMsg.getVal())
+			sev.db.add(recvMsg.GetVal())
 		}
 
 		//Send it back HeartBeat
