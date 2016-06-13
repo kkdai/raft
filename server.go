@@ -14,11 +14,12 @@ const (
 	Leader
 )
 
-type server struct {
+//RaftServer :
+type RaftServer struct {
 	//Persistent state on all servers
 	currentTerm int
 	voteFor     int
-	//log
+	log         []int
 
 	//Validate state for all servers
 	commitIndex int
@@ -45,23 +46,23 @@ type server struct {
 	acceptVoteMsg []Message
 }
 
-//New a server and given a random expired time.
-func NewServer(id int, role Role, nt nodeNetwork, nodeList ...int) *server {
+//NewServer :New a server and given a random expired time.
+func NewServer(id int, role Role, nt nodeNetwork, nodeList ...int) *RaftServer {
 	rand.Seed(time.Now().UnixNano())
 	expiredMiliSec := rand.Intn(5) + 1
-	serv := &server{id: id,
+	serv := &RaftServer{id: id,
 		role:        role,
 		nt:          nt,
 		expiredTime: expiredMiliSec,
 		isAlive:     true,
 		nodeList:    nodeList,
 		db:          submittedItems{}}
+	go serv.runServerLoop()
 	return serv
 }
 
 //AssignAction : Assign a assign to any of server.
-//This is another thread, because the command send from outside, example app request to log.
-func (sev *server) AssignAction(action datalog) {
+func (sev *RaftServer) AppendEntries(action datalog) {
 	//TODO. Add action into logs and leader will announce to all other servers.
 	switch sev.role {
 	case Leader:
@@ -74,11 +75,12 @@ func (sev *server) AssignAction(action datalog) {
 	}
 }
 
-func (sev *server) Whoareyou() Role {
+//Whoareyou :Check rule function for testing verification.
+func (sev *RaftServer) Whoareyou() Role {
 	return sev.role
 }
 
-func (sev *server) RunServerLoop() {
+func (sev *RaftServer) runServerLoop() {
 
 	for {
 		switch sev.role {
@@ -91,12 +93,12 @@ func (sev *server) RunServerLoop() {
 		}
 
 		//timer base on milli-second.
-		time.Sleep(time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 	}
 }
 
 //For flower -> candidate
-func (sev *server) requestVote(action datalog) {
+func (sev *RaftServer) requestVote(action datalog) {
 	m := Message{from: sev.id,
 		typ:          RequestVote,
 		val:          action,
@@ -109,10 +111,10 @@ func (sev *server) requestVote(action datalog) {
 
 	//Send request Vote and change self to Candidate.
 	sev.roleChange(Candidate)
-	log.Println(" Now ID:", sev.id, " become ", sev.role)
+	log.Println("Now ID:", sev.id, " become candidate->", sev.role)
 }
 
-func (sev *server) sendHearbit() {
+func (sev *RaftServer) sendHearbit() {
 	latestData := sev.db.getLatestLogs()
 	for _, node := range sev.nodeList {
 		hbMsg := Message{from: sev.id, to: node, typ: Heartbit, val: *latestData}
@@ -120,7 +122,7 @@ func (sev *server) sendHearbit() {
 	}
 }
 
-func (sev *server) runLeaderLoop() {
+func (sev *RaftServer) runLeaderLoop() {
 	log.Println("ID:", sev.id, " Run leader loop")
 	sev.sendHearbit()
 
@@ -147,7 +149,7 @@ func (sev *server) runLeaderLoop() {
 	//TODO. if get bigger TERM request, back to follower
 }
 
-func (sev *server) runCandidateLoop() {
+func (sev *RaftServer) runCandidateLoop() {
 	log.Println("ID:", sev.id, " Run candidate loop")
 	//TODO. send RequestVote to all others
 	recvMsg := sev.nt.recev()
@@ -165,10 +167,11 @@ func (sev *server) runCandidateLoop() {
 		return
 	case AcceptVote:
 		sev.acceptVoteMsg = append(sev.acceptVoteMsg, *recvMsg)
-		if len(sev.acceptVoteMsg) > sev.majorityCount() {
+		log.Println("[candidate]: has ", len(sev.acceptVoteMsg), " still not reach ", sev.majorityCount())
+		if len(sev.acceptVoteMsg) >= sev.majorityCount() {
 			sev.roleChange(Leader)
 
-			//TODO. send win vote to all note
+			// send winvote to all and notify there is new leader
 			for _, node := range sev.nodeList {
 				hbMsg := Message{from: sev.id, to: node, typ: WinningVote}
 				sev.nt.send(hbMsg)
@@ -177,7 +180,8 @@ func (sev *server) runCandidateLoop() {
 
 		return
 	case WinningVote:
-		//TODO
+		//Receive winvote from other candidate means we need goback to follower
+		sev.roleChange(Follower)
 		return
 
 	}
@@ -186,7 +190,7 @@ func (sev *server) runCandidateLoop() {
 	//TODO. If not, back to follower
 }
 
-func (sev *server) runFollowerLoop() {
+func (sev *RaftServer) runFollowerLoop() {
 	log.Println("ID:", sev.id, " Run follower loop")
 
 	//TODO. check if leader no heartbeat to change to candidate.
@@ -213,26 +217,28 @@ func (sev *server) runFollowerLoop() {
 	case RequestVote:
 		//Handle Request Vote from candidate.
 		//If doesn't vote before, will vote.
-		if !sev.HasVoted {
+		if sev.voteFor == 0 {
 			recvMsg.to = recvMsg.from
 			recvMsg.from = sev.id
 			recvMsg.typ = AcceptVote
 			sev.nt.send(*recvMsg)
+			sev.voteFor = recvMsg.from
 		} else {
 			//Don't do anything if you already vote.
 			//Only vote when first candidate request vote comes.
 		}
 	case WinningVote:
 		//Clean variables.
-		sev.HasVoted = false
+		sev.voteFor = recvMsg.from
+
 	}
 }
 
-func (sev *server) majorityCount() int {
+func (sev *RaftServer) majorityCount() int {
 	return len(sev.nodeList)/2 + 1
 }
 
-func (sev *server) roleChange(newRole Role) {
+func (sev *RaftServer) roleChange(newRole Role) {
 	log.Println("note:", sev.id, " change role from ", sev.role, " to ", newRole)
 	sev.role = newRole
 }
